@@ -1,6 +1,6 @@
 # Auto Generated Commit Messages with OpenAI
 
-Are you like me who overthinks when writing commit message? Never stress over commit messages again — AI will do it for you! :)
+Are you like me who overthinks when writing your commit messages? Never stress over commit messages again — AI will do it for you! :)
 
 1. npm install
 2. create file `nano .git/hooks/prepare-commit-msg`
@@ -33,6 +33,6 @@ node "$COMMIT_MESSAGE_SCRIPT" "$1"
 ```
 4. make file executable `chmod +x .git/hooks/prepare-commit-msg`
 
-## How to obtain `GITHUB_ACCESS_TOKEN`?
+How to obtain `GITHUB_ACCESS_TOKEN`?
 
 Watch this video: https://www.youtube.com/watch?v=YP8mV_2RDLc
