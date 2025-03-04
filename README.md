@@ -1,6 +1,6 @@
 # Auto Generated Commit Messages with OpenAI
 
-## Are you like me who overthinks when writing commit message? Never stress over commit messages again — AI will do it for you! :)
+Are you like me who overthinks when writing commit message? Never stress over commit messages again — AI will do it for you! :)
 
 1. npm install
 2. create file `nano .git/hooks/prepare-commit-msg`
