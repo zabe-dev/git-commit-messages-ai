@@ -32,6 +32,15 @@ fi
 node "$COMMIT_MESSAGE_SCRIPT" "$1"
 ```
 4. make file executable `chmod +x .git/hooks/prepare-commit-msg`
+5. Create your `.env` file
+
+```
+GITHUB_ACCESS_TOKEN="your_github_access_token"
+OPENAI_BASE_MODEL="gpt-4o"
+OPENAI_TEMPERATURE="0.5"
+OPENAI_MAX_TOKENS="72"
+OPENAI_TOP_P="1"
+```
 
 How to obtain `GITHUB_ACCESS_TOKEN`?
 
