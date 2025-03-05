@@ -31,12 +31,10 @@ const isValidCommitMessage = (message) => {
 		/^(feat|fix|docs|style|refactor|test|chore|build|ci|perf|revert)(\([a-z0-9-]+\))?:\s*.+$/;
 
 	if (cleanedMessage.length > 72) {
-		console.warn(`Warning: Message exceeds 72 characters`);
 		return false;
 	}
 
 	if (!conventionalCommitRegex.test(cleanedMessage)) {
-		console.warn(`Invalid commit message format: ${cleanedMessage}`);
 		return false;
 	}
 
@@ -58,22 +56,29 @@ const getStagedDiff = () => {
 };
 
 const generateUserPrompt = (diff) => `
-  Generate a conventional commit message that:
+  Generate a concise conventional commit message that:
     • Uses a standard prefix from: ${Object.keys(COMMIT_TYPES).join(", ")}
     • Optional scope in parentheses is allowed
     • Describes the core change precisely
-    • Stays under 72 characters
+    • Must be 72 characters or less
 
   Commit Type Guidelines:
   ${Object.entries(COMMIT_TYPES)
-		.map(([type, description]) => `    - ${type}: ${description}`)
+		.map(([type, description]) => `${type}: ${description}`)
 		.join("\n")}
 
   Staged Changes Context:
   ${diff.substring(0, 500)}  
 `;
 
-const generateCommitMessage = async (diff) => {
+const generateCommitMessage = async (diff, attempts = 3) => {
+	if (attempts <= 0) {
+		console.warn(
+			"Failed to generate a valid commit message after multiple attempts."
+		);
+		return null;
+	}
+
 	try {
 		const openaiClient = new OpenAI({
 			apiKey: GITHUB_ACCESS_TOKEN,
@@ -86,11 +91,16 @@ const generateCommitMessage = async (diff) => {
 				{
 					role: "system",
 					content:
-						"Generate precise, concise Git commit messages following conventional commit standards, focusing on clarity and informativeness.",
+						"Generate precise, concise Git commit messages following conventional commit standards. Focus on brevity and clarity. Ensure the message is 72 characters or less.",
 				},
 				{
 					role: "user",
 					content: generateUserPrompt(diff),
+				},
+				{
+					role: "user",
+					content:
+						"Reminder: The commit message MUST be 72 characters or less. Be extremely concise.",
 				},
 			],
 			temperature: Number(process.env.OPENAI_TEMPERATURE),
@@ -114,25 +124,24 @@ const generateCommitMessage = async (diff) => {
 			.replace(/\*$/, "") // Remove trailing asterisks
 			.trim();
 
-		// validate the generated commit message
+		// if message is invalid, recursively try again
 		if (!isValidCommitMessage(cleanedMessage)) {
 			console.warn(
-				`Warning: Generated message might not fully meet standards: ${cleanedMessage}`
+				`Invalid message (${cleanedMessage.length} chars): Regenerating...`
 			);
-
-			// attempt to manually fix the message
-			const fixedMessage =
-				cleanedMessage.length > 72
-					? cleanedMessage.substring(0, 72)
-					: cleanedMessage;
-
-			return fixedMessage;
+			return generateCommitMessage(diff, attempts - 1);
 		}
 
 		return cleanedMessage;
 	} catch (error) {
 		console.error("Error generating commit message:", error.message);
-		process.exit(1);
+
+		// if there's an error, try again with fewer attempts
+		if (attempts > 0) {
+			return generateCommitMessage(diff, attempts - 1);
+		}
+
+		return null;
 	}
 };
 
@@ -152,12 +161,30 @@ const main = async () => {
 		const diff = getStagedDiff();
 		const commitMessage = await generateCommitMessage(diff);
 
-		fs.writeFileSync(commitMsgFile, commitMessage, "utf-8");
+		if (commitMessage) {
+			// if ai successfully generated a commit message, write it
+			fs.writeFileSync(commitMsgFile, commitMessage, "utf-8");
+			console.log("Commit message generated successfully:", commitMessage);
+		} else {
+			// if ai failed, read the existing commit message (if any)
+			const existingMessage = fs.existsSync(commitMsgFile)
+				? fs.readFileSync(commitMsgFile, "utf-8").trim()
+				: "";
 
-		console.log("Commit message generated successfully:", commitMessage);
+			if (existingMessage) {
+				console.warn(
+					"Generating commit message failed. Using existing message."
+				);
+			} else {
+				console.warn(
+					"Generating commit message failed. Please write the commit message manually."
+				);
+			}
+			process.exit(0);
+		}
 	} catch (error) {
 		console.error("Failed to generate commit message:", error.message);
-		process.exit(1);
+		process.exit(0);
 	}
 };
 
